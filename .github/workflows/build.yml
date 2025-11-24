@@ -35,7 +35,7 @@ jobs:
           sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
           echo "Installing build tools..."
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget xz-utils zstd gettext-base
+          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-venv python3-dev python3-setuptools rsync swig unzip zlib1g-dev file wget xz-utils zstd gettext-base
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
@@ -126,60 +126,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # 核心修改点：只保留斐讯 K3 对应的平台 (arm_cortex-a9)
         include:
-          - platform: amd64
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/x86/64/openwrt-sdk-24.10.1-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: aarch64_generic
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/rockchip/armv8/openwrt-sdk-24.10.1-rockchip-armv8_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: aarch64_cortex-a53
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/mvebu/cortexa53/openwrt-sdk-24.10.1-mvebu-cortexa53_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: aarch64_cortex-a72
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/mvebu/cortexa72/openwrt-sdk-24.10.1-mvebu-cortexa72_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a5_vfpv4
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/at91/sama5/openwrt-sdk-24.10.1-at91-sama5_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a7
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/mediatek/mt7629/openwrt-sdk-24.10.1-mediatek-mt7629_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a7_neon-vfpv4
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/sunxi/cortexa7/openwrt-sdk-24.10.1-sunxi-cortexa7_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a8_vfpv3
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/sunxi/cortexa8/openwrt-sdk-24.10.1-sunxi-cortexa8_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
           - platform: arm_cortex-a9
             sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/bcm53xx/generic/openwrt-sdk-24.10.1-bcm53xx-generic_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a9_neon
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/zynq/generic/openwrt-sdk-24.10.1-zynq-generic_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a9_vfpv3-d16
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/mvebu/cortexa9/openwrt-sdk-24.10.1-mvebu-cortexa9_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: arm_cortex-a15_neon-vfpv4
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/ipq806x/generic/openwrt-sdk-24.10.1-ipq806x-generic_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: mips_mips32
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/bcm53xx/generic/openwrt-sdk-24.10.1-bcm53xx-generic_gcc-13.3.0_musl_eabi.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: mipsel_24kc
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/ramips/rt288x/openwrt-sdk-24.10.1-ramips-rt288x_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: mipsel_74kc
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/ramips/rt3883/openwrt-sdk-24.10.1-ramips-rt3883_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: mipsel_mips32
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/bcm47xx/generic/openwrt-sdk-24.10.1-bcm47xx-generic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: riscv64
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/starfive/generic/openwrt-sdk-24.10.1-starfive-generic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
-            sdk_ver: "24.10"
-          - platform: loongarch64
-            sdk_url: "https://downloads.openwrt.org/releases/24.10.1/targets/loongarch64/generic/openwrt-sdk-24.10.1-loongarch64-generic_gcc-13.3.0_musl.Linux-x86_64.tar.zst"
             sdk_ver: "24.10"
     steps:
       - name: Checkout repository
@@ -197,7 +147,8 @@ jobs:
           sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
           echo "Installing build tools..."
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget xz-utils zstd gettext-base
+          # 修复依赖：用 python3-venv 和 python3-dev 替代废弃的 python3-distutils
+          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-venv python3-dev python3-setuptools rsync swig unzip zlib1g-dev file wget xz-utils zstd gettext-base
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
@@ -239,6 +190,13 @@ jobs:
           ./scripts/feeds install -d n nps
           make package/npc/download -j8
           make package/nps/download -j8
+
+      # 核心修改点：添加架构适配补丁，解决 "illegal instruction" 问题
+      - name: Patch npc Makefile for arm_v7 compatibility (K3 fix)
+        run: |
+          cd sdk/package/npc
+          # 将 bcm53xx 平台的架构从 arm_v6 强制改为 arm_v7
+          sed -i '/ifeq ($(BOARD),bcm53xx)/,/else ifeq ($(ARCH),arm)/c\ifeq ($(BOARD),bcm53xx)\n\tNPC_ARCH:=arm_v7\nelse ifeq ($(ARCH),arm)' Makefile
 
       - name: Pre-generate configuration
         run: |
