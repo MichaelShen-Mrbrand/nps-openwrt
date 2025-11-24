@@ -26,10 +26,6 @@ ifeq ($(findstring armv8,$(BOARD)),armv8)
 endif
 ifeq ($(ARCH),arm)
 	ifeq ($(BOARD),bcm53xx)
-		NPC_ARCH:=arm_v6
-	else ifeq ($(BOARD),kirkwood)
-		NPC_ARCH:=arm_v5
-	else
 		NPC_ARCH:=arm_v7
 	endif
 endif
