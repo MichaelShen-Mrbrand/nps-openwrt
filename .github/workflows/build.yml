@@ -35,7 +35,7 @@ jobs:
           sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
           echo "Installing build tools..."
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget xz-utils zstd gettext-base
+          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget python3 python3-pip
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
@@ -121,7 +121,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_bin:
-    name: Build bin
+    name: Build bin (arm_cortex-a9, force armv7)
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -133,30 +133,30 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-  
+
       - name: Get version
         id: get_version
         run: |
           version=$(cat nps.ver)
           echo "NPS_VERSION=$version" >> $GITHUB_ENV
           echo "NPS Version: $version"
-  
+
       - name: Install build tools
         run: |
           sudo -E rm -rf /usr/share/dotnet /etc/mysql /etc/php /etc/apt/sources.list.d /usr/local/lib/android
           echo "Installing build tools..."
           sudo -E apt-get -qq update
-          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-venv python3-dev python3-setuptools rsync swig unzip zlib1g-dev file wget xz-utils zstd gettext-base
+          sudo -E apt-get -qq install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3-distutils python3-setuptools rsync swig unzip zlib1g-dev file wget python3 python3-pip
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
-  
+
       - name: Cache OpenWrt SDK
         id: cache-sdk
         uses: actions/cache@v4
         with:
           path: cache-sdk
           key: openwrt-sdk-${{ matrix.sdk_ver }}-${{ matrix.platform }}
-  
+
       - name: Download SDK - ${{ matrix.platform }}
         if: steps.cache-sdk.outputs.cache-hit != 'true'
         run: |
@@ -164,7 +164,7 @@ jobs:
           cd cache-sdk
           wget "${{ matrix.sdk_url }}"
           cd ..
-  
+
       - name: Extract SDK
         run: |
           mkdir -p sdk
@@ -175,75 +175,56 @@ jobs:
           else
             tar -xf "$tarball_path" -C sdk --strip-components=1
           fi
-  
-      - name: Update feeds
+
+      - name: Update feeds & install package
         run: |
           cd sdk
-          # 确保源配置正确（指向包含 npc 包的仓库）
           echo "src-git nps https://github.com/${{ github.repository }}.git" > feeds.conf
-          # 强制更新 feeds，确保拉取最新代码
-          ./scripts/feeds update -f -a
-  
-      - name: Install and verify npc package
+
+          ./scripts/feeds update -a
+          echo "CONFIG_PACKAGE_npc=m" > .config
+          echo "CONFIG_PACKAGE_nps=m" >> .config
+          ./scripts/feeds install -d n npc
+          ./scripts/feeds install -d n nps
+          make package/npc/download -j8
+          make package/nps/download -j8
+
+      - name: Pre-generate configuration (force armv7)
         run: |
           cd sdk
-          # 强制重新安装 npc 和 nps 包（-f 覆盖现有文件）
-          ./scripts/feeds install -f -d n npc
-          ./scripts/feeds install -f -d n nps
-          
-          # 验证 npc 包是否被正确安装到 feeds 目录
-          if [ ! -d "feeds/nps/npc" ]; then
-            echo "::error::npc 包未安装到 feeds/nps/npc，可能源仓库中不存在该包。"
-            exit 1
-          fi
-          echo "npc 包已成功安装到 feeds/nps/npc"
-  
-      - name: Patch npc Makefile for arm_v7 compatibility (K3 fix)
-        run: |
-          cd sdk/feeds/nps/npc
-          # 确认 Makefile 存在
-          if [ ! -f "Makefile" ]; then
-            echo "::error::feeds/nps/npc 目录中缺少 Makefile"
-            exit 1
-          fi
-          # 修改架构配置
-          sed -i '/ifeq ($(BOARD),bcm53xx)/,/else ifeq ($(ARCH),arm)/c\ifeq ($(BOARD),bcm53xx)\n\tNPC_ARCH:=arm_v7\nelse ifeq ($(ARCH),arm)' Makefile
-  
-      - name: Pre-generate configuration
-        run: |
-          cd sdk
-          echo "CONFIG_ALL_NONSHARED=n" > .config
+          # 强制为armv7架构。可根据你的package/build script实际要求进一步调整。
+          echo "CONFIG_TARGET_bcm53xx=y" > .config
+          echo "CONFIG_TARGET_bcm53xx_generic=y" >> .config
+          echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
+          echo "CONFIG_TARGET_PER_DEVICE_ROOTFS=y" >> .config
+          echo "CONFIG_ARMV7_ARCH=y" >> .config
+          echo "CONFIG_ALL_NONSHARED=n" >> .config
           echo "CONFIG_ALL_KMODS=n" >> .config
           echo "CONFIG_ALL=n" >> .config
           echo "CONFIG_AUTOREMOVE=n" >> .config
           echo "CONFIG_PACKAGE_npc=m" >> .config
           echo "CONFIG_PACKAGE_nps=m" >> .config
           make defconfig
-  
+
       - name: Build package for ${{ matrix.platform }}
         run: |
           cd sdk
-          # 编译前再次确认路径有效性
-          if [ ! -d "feeds/nps/npc" ]; then
-            echo "::error::编译前未找到 feeds/nps/npc 目录"
-            exit 1
-          fi
-          # 执行编译
-          make feeds/nps/npc/{clean,compile} -j$(nproc) V=s
-          make feeds/nps/nps/{clean,compile} -j$(nproc) V=s
-  
+          # 如有必要可添加: export ARCH=armv7
+          make package/npc/{clean,compile} -j$(nproc) V=s
+          make package/nps/{clean,compile} -j$(nproc) V=s
+
       - name: Collect bin ipk for ${{ matrix.platform }}
         run: |
           cd sdk
           mkdir -p ../release/bin/${{ matrix.platform }}
           cp bin/packages/*/nps/*.ipk ../release/bin/${{ matrix.platform }}/
-  
+
       - name: Upload bin artifacts for ${{ matrix.platform }}
         uses: actions/upload-artifact@v4
         with:
           name: bin-${{ matrix.platform }}-${{ env.NPS_VERSION }}
           path: release/bin/${{ matrix.platform }}/*.ipk
-  
+
       - name: Upload release assets for ${{ matrix.platform }}
         uses: softprops/action-gh-release@v2
         with:
