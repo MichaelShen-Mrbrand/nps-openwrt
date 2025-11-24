@@ -110,18 +110,8 @@ jobs:
           name: luci-${{ matrix.luci_ver }}-${{ matrix.sdk_ver }}
           path: release/luci/*.ipk
 
-      - name: Upload release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.NPS_VERSION }}
-          files: release/luci/*.ipk
-          prerelease: false
-          update_existing_release: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   build_bin:
-    name: Build bin (arm_cortex-a9, force armv7)
+    name: Build bin (arm_cortex-a9, force armv7 soft-float)
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -189,15 +179,13 @@ jobs:
           make package/npc/download -j8
           make package/nps/download -j8
 
-      - name: Pre-generate configuration (force armv7)
+      - name: Pre-generate configuration (force armv7 soft-float)
         run: |
           cd sdk
-          # 强制为armv7架构。可根据你的package/build script实际要求进一步调整。
           echo "CONFIG_TARGET_bcm53xx=y" > .config
           echo "CONFIG_TARGET_bcm53xx_generic=y" >> .config
           echo "CONFIG_TARGET_MULTI_PROFILE=y" >> .config
           echo "CONFIG_TARGET_PER_DEVICE_ROOTFS=y" >> .config
-          echo "CONFIG_ARMV7_ARCH=y" >> .config
           echo "CONFIG_ALL_NONSHARED=n" >> .config
           echo "CONFIG_ALL_KMODS=n" >> .config
           echo "CONFIG_ALL=n" >> .config
@@ -206,10 +194,11 @@ jobs:
           echo "CONFIG_PACKAGE_nps=m" >> .config
           make defconfig
 
-      - name: Build package for ${{ matrix.platform }}
+      - name: Build package for ${{ matrix.platform }} (force armv7 soft-float)
         run: |
           cd sdk
-          # 如有必要可添加: export ARCH=armv7
+          export CFLAGS="-march=armv7-a -mfloat-abi=soft"
+          export CXXFLAGS="-march=armv7-a -mfloat-abi=soft"
           make package/npc/{clean,compile} -j$(nproc) V=s
           make package/nps/{clean,compile} -j$(nproc) V=s
 
@@ -224,13 +213,3 @@ jobs:
         with:
           name: bin-${{ matrix.platform }}-${{ env.NPS_VERSION }}
           path: release/bin/${{ matrix.platform }}/*.ipk
-
-      - name: Upload release assets for ${{ matrix.platform }}
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ env.NPS_VERSION }}
-          files: release/bin/${{ matrix.platform }}/*.ipk
-          prerelease: false
-          update_existing_release: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
