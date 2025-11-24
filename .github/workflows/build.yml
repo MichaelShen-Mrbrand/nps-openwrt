@@ -140,10 +140,6 @@ jobs:
           sudo -E apt-get -qq autoremove --purge
           sudo -E apt-get -qq clean
 
-      - name: Patch npc Makefile for bcm53xx (force arm_v7)
-        run: |
-          sed -i 's/NPC_ARCH:=arm_v6/NPC_ARCH:=arm_v7/g' package/npc/Makefile
-
       - name: Cache OpenWrt SDK
         id: cache-sdk
         uses: actions/cache@v4
@@ -182,6 +178,10 @@ jobs:
           ./scripts/feeds install -d n nps
           make package/npc/download -j8
           make package/nps/download -j8
+
+      - name: Patch npc Makefile for bcm53xx (force arm_v7)
+        run: |
+          sed -i 's/NPC_ARCH:=arm_v6/NPC_ARCH:=arm_v7/g' sdk/package/npc/Makefile
 
       - name: Pre-generate configuration (force armv7 soft-float)
         run: |
