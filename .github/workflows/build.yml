@@ -194,7 +194,7 @@ jobs:
       # 核心修改点：添加架构适配补丁，解决 "illegal instruction" 问题
       - name: Patch npc Makefile for arm_v7 compatibility (K3 fix)
         run: |
-          cd sdk/package/npc
+          cd sdk/feeds/nps/npc
           # 将 bcm53xx 平台的架构从 arm_v6 强制改为 arm_v7
           sed -i '/ifeq ($(BOARD),bcm53xx)/,/else ifeq ($(ARCH),arm)/c\ifeq ($(BOARD),bcm53xx)\n\tNPC_ARCH:=arm_v7\nelse ifeq ($(ARCH),arm)' Makefile
 
