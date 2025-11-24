@@ -176,37 +176,40 @@ jobs:
             tar -xf "$tarball_path" -C sdk --strip-components=1
           fi
 
-      - name: Update feeds & install package
+      - name: Update feeds
         run: |
           cd sdk
           echo "src-git nps https://github.com/${{ github.repository }}.git" > feeds.conf
           ./scripts/feeds update -a
+
+      # 核心修改点 #1：提前生成 .config 文件并使用 defconfig 填充
+      - name: Pre-generate and complete configuration
+        run: |
+          cd sdk
+          # 创建一个基础的 .config 文件，指定要编译的包
+          echo "CONFIG_PACKAGE_npc=m" > .config
+          echo "CONFIG_PACKAGE_nps=m" >> .config
           
-          # 核心修改点 #1：下载依赖时使用 feeds 路径
-          make feeds/nps/npc/download -j8
-          make feeds/nps/nps/download -j8
+          # 运行 defconfig 来自动补全所有配置选项，这会避免触发 menuconfig
+          make defconfig
+
+      - name: Install package
+        run: |
+          cd sdk
+          # 现在 .config 已经存在，可以安全地安装包了
+          ./scripts/feeds install -d n npc
+          ./scripts/feeds install -d n nps
 
       - name: Patch npc Makefile for arm_v7 compatibility (K3 fix)
         run: |
-          # 这个路径是正确的，因为我们是在修改 feeds 目录下的原始文件
           cd sdk/feeds/nps/npc
           sed -i '/ifeq ($(BOARD),bcm53xx)/,/else ifeq ($(ARCH),arm)/c\ifeq ($(BOARD),bcm53xx)\n\tNPC_ARCH:=arm_v7\nelse ifeq ($(ARCH),arm)' Makefile
 
-      - name: Pre-generate configuration
-        run: |
-          cd sdk
-          echo "CONFIG_ALL_NONSHARED=n" > .config
-          echo "CONFIG_ALL_KMODS=n" >> .config
-          echo "CONFIG_ALL=n" >> .config
-          echo "CONFIG_AUTOREMOVE=n" >> .config
-          echo "CONFIG_PACKAGE_npc=m" >> .config
-          echo "CONFIG_PACKAGE_nps=m" >> .config
-          make defconfig
-
+      # 核心修改点 #2：直接编译，无需再处理配置
       - name: Build package for ${{ matrix.platform }}
         run: |
           cd sdk
-          # 核心修改点 #2：编译和清理时使用 feeds 路径
+          # 由于已经有了完整的 .config，可以直接编译
           make feeds/nps/npc/{clean,compile} -j$(nproc) V=s
           make feeds/nps/nps/{clean,compile} -j$(nproc) V=s
 
